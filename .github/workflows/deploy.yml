@@ -12,28 +12,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 检出仓库的最新版本
+    # 1. 检出仓库的最新版本
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # 使用 rsync 连接到你的服务器
-    - name: Copy files to server using rsync
+    # 2. 安装必要的工具
+    - name: Install dependencies
       run: |
-        if [ "$(ls -A ./source/_posts/)" ]; then
-          sshpass -p "${{ secrets.SERVER_PASSWORD }}" rsync -avz --ignore-errors --delete --progress -e "ssh -o StrictHostKeyChecking=no" ./source/_posts/ root@${{ secrets.SERVER_HOST }}:/blog/source/_posts/
-        else
-          echo "No files to sync in ./source/_posts/, deploying keep.md instead."
-          echo "Deleting existing posts on server..."
-          sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} "rm -rf /blog/source/_posts/*"
-          echo "Copying keep.md to server..."
-          sshpass -p "${{ secrets.SERVER_PASSWORD }}" rsync -avz --progress -e "ssh -o StrictHostKeyChecking=no" ./source/_posts/keep.md root@${{ secrets.SERVER_HOST }}:/blog/source/_posts/
-        fi
+        sudo apt-get update
+        sudo apt-get install -y sshpass rsync
 
-    # 在服务器上执行 Hexo 相关命令
-    - name: Run hexo commands on server
+    # 3. 同步 ./source/_posts/ 目录到远程服务器
+    - name: Sync _posts folder to server
       run: |
+        echo "Syncing files from ./source/_posts/ to server..."
+        sshpass -p "${{ secrets.SERVER_PASSWORD }}" rsync -avz --ignore-errors --delete --progress -e "ssh -o StrictHostKeyChecking=no" ./source/_posts/ root@${{ secrets.SERVER_HOST }}:/blog/source/_posts/
+
+    # 4. 在服务器上执行 Hexo 命令
+    - name: Run Hexo commands on server
+      run: |
+        echo "Running Hexo commands on server..."
         sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << 'EOF'
           cd /blog  # 进入服务器上的 Hexo 目录
           hexo g  # 生成静态文件
-          
         EOF
